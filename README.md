@@ -1,5 +1,4 @@
 # Guildford
-Engine Investigation
 After Lionhead closed, I needed something to do, so I set about creating a one-thread-per-core engine with support for:
 * IO operations using IoCompletionPorts
 * Asynchronous functions.

@@ -2,6 +2,7 @@
 #include "Engine.h"
 #include "Task.h"
 #include "IoReadRequest.h"
+#include "IoWriteRequest.h"
 #include "Dispatcher.h"
 #include "GraphicsManager.h"
 #include <d3d11_1.h>
@@ -47,6 +48,7 @@ struct MyCrtMemBlockHeader
 #include <algorithm> // sort
 #define PROJECTNAME "Guildford"
 __declspec(thread) Eng::EThreadType _ThreadType = Eng::EThreadType::UnknownThread;
+__declspec(thread) unsigned _ThreadId = -1;
 
 namespace Eng
 {
@@ -187,7 +189,7 @@ namespace Eng
 		if (hr == DXGI_ERROR_NOT_FOUND)
 		{
 			SAFE_RELEASE(factory);
-			ENGINE_LOG(Error, "Unable to find a DX11.1 adapter");
+			ENGINE_LOG(Error, "Unable to find a DX11 adapter");
 		}
 		DXGI_SWAP_CHAIN_DESC scd{ 0 };
 		scd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
@@ -242,16 +244,21 @@ namespace Eng
 		}
 		if (_Device)
 		{
-			ID3D11Debug* debug = nullptr;
-			HRESULT hr = _Device->QueryInterface(__uuidof(ID3D11Debug), (void**)&debug);
 			_Device->Release();
 			_Device = nullptr;
+		}
+/*		if (_Device)
+		{
+			ID3D11Debug* debug = nullptr;
+			HRESULT hr = _Device->QueryInterface(__uuidof(ID3D11Debug), (void**)&debug);
 			if (hr == S_OK)
 			{
 				debug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 				debug->Release();
 			}
-		}
+			_Device->Release();
+			_Device = nullptr;
+		} */
 	}
 #if ENGINE_USE_DEBUG_ALLOCATOR
 	static void ReportMemoryLeaks()
@@ -265,10 +272,10 @@ namespace Eng
 			leak_in_client_block = difference.lSizes[_CLIENT_BLOCK];
 			if (leak_in_client_block)
 			{
+				_CrtMemDumpAllObjectsSince(&_MemStateOnConstruction); // Calls into DumpClientFunction, extracting files and line numbers into a global variable, _MemoryLeakString.
 				char buffer[LocalBufferSize];
 				sprintf_s(buffer, "Memory leak total: %Iu bytes\r\n", leak_in_client_block);
 				_MemoryLeakString += buffer;
-				_CrtMemDumpAllObjectsSince(&_MemStateOnConstruction); // Calls into DumpClientFunction, extracting files and line numbers into a global variable, _MemoryLeakString.
 				ENGINE_LOG(Comment, "Engine Finalized - Leaks detected!\r\n%s", _MemoryLeakString.c_str());
 				if (!std::uncaught_exception())
 				{
@@ -354,9 +361,23 @@ namespace Eng
 			}
 		}
 		OutputDebugString(buffer);
-		if (severity != Comment)
+		if (severity != Comment )
 		{
-			throw Exception(throw_chars, file, function, line);
+			if (!std::uncaught_exception())
+			{
+				throw Exception(throw_chars, file, function, line);
+			}
+			else
+			{
+				try
+				{
+					throw Exception(throw_chars, file, function, line);
+				}
+				catch (...)
+				{
+					_ExceptionContainer += std::current_exception();
+				}
+			}
 		}
 	}
 
@@ -416,22 +437,19 @@ namespace Eng
 	{
 		TaskGraph::Async(function);
 	}
-
 	void Engine::Load(const char* filename, std::function<void(std::shared_ptr<IoReadData>)> function)
 	{
-		char new_filename[MAX_PATH] = "..\\..\\";
-		strcat_s(new_filename, filename);
 		if (_ThreadType == EThreadType::MainThread)
 		{
 			// Main Thread - don't stall opening files.
-			TaskGraph::BeginRead(new IoReadRequest(new_filename, function));
+			TaskGraph::BeginRead(new IoReadRequest(filename, function));
 		}
 		else
 		{
 			// Worker thread - stall opening files.
 			try
 			{
-				IoReadRequest* read_request = new IoReadRequest(new_filename, function);
+				IoReadRequest* read_request = new IoReadRequest(filename, function);
 				read_request->Begin();
 			}
 			catch (...)
@@ -440,7 +458,28 @@ namespace Eng
 			}
 		}
 	}
+	void Engine::Save(const char* filename, std::shared_ptr<IoReadData> data)
+	{
+		if (_ThreadType == EThreadType::MainThread)
+		{
+			// Main Thread - don't stall opening files.
+			TaskGraph::BeginWrite(new IoWriteRequest(filename, data));
+		}
+		else
+		{
+			// Worker thread - stall opening files.
+			try
+			{
+				IoWriteRequest* write_request = new IoWriteRequest(filename, data);
+				write_request->Begin();
+			}
+			catch (...)
+			{
+				_ExceptionContainer += std::current_exception();
+			}
+		}
 
+	}
 	void Engine::Dispatch(std::function<void()> function)
 	{
 		Dispatcher::Dispatch(function);

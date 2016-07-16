@@ -6,3 +6,5 @@
 #include "../Engine/IoTypes.h"
 #include "../Engine/GameTime.h"
 #include "../Engine/GraphicsManager.h"
+#include "../Engine/Event.h"
+#include "../Engine/SpinLock.h"

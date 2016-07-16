@@ -59,6 +59,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 				ENGINE_LOG(Eng::Error, "Unable to create game view");
 			}
 			result = MessageLoop();
+			SAFE_DELETE(_GameView);
+			gid.DestroyGameInstance(_GameInstance);
+			_GameInstance = nullptr;
 		}
 		catch (Exception& e)
 		{

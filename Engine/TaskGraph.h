@@ -10,6 +10,7 @@ namespace Eng
 {
 	class TaskBase;
 	class IoReadRequest;
+	class IoWriteRequest;
 	class TaskGraph
 	{
 		// Restrict access to Queue to tasks.
@@ -22,7 +23,9 @@ namespace Eng
 		static void Initialize(); // Prevent TaskGraph from being initialized/finalized
 		static void Finalize(); //  outside the Engine module.
 		static void AssociateWithRead(void* file_handle);
+		static void AssociateWithWrite(void* file_handle);
 		static void BeginRead(IoReadRequest* read_request);
+		static void BeginWrite(IoWriteRequest* write_request);
 		ENGINE_API static void Join();
 		ENGINE_API static void TaskCreated();
 		ENGINE_API static void TaskCompleted();

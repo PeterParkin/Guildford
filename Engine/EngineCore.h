@@ -5,7 +5,7 @@
 //
 // Include early in the precompiled header for any module that links to the engine.
 //
-
+#define ENGINE_MAX_PATH 260
 // Replacement placement new, as new is redefined when using the debug allocator.
 template<typename T, typename... TArgs>
 T* pnew(void* address, TArgs... args)

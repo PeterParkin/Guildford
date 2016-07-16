@@ -2,6 +2,7 @@
 
 #include "IoRequest.h"
 #include "IoTypes.h" // IoReadData
+#include "Event.h"
 
 #include <memory> // std::shared_ptr
 #include <functional> // std::function

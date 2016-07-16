@@ -4,6 +4,7 @@
 #include "AtomicStack.h"
 #include "TaskBase.h"
 #include "IoReadRequest.h"
+#include "IoWriteRequest.h"
 #include "Dispatcher.h"
 
 #include <thread>
@@ -91,6 +92,37 @@ namespace Eng
 				}
 			}
 			break;
+			case Key::BeginWrite:
+			{
+				auto write_request = reinterpret_cast<IoWriteRequest*>(ovl);
+				try
+				{
+					write_request->Begin();
+				}
+				catch (...)
+				{
+					Engine::_ExceptionContainer += std::current_exception();
+					write_request->End(false); // Deletes the write request.
+				}
+			}
+			break;
+			case Key::EndWrite:
+			{
+				auto write_request = static_cast<IoWriteRequest*>(ovl);
+				try
+				{
+					write_request->End(number_of_bytes != 0);
+				}
+				catch (...)
+				{
+					Engine::_ExceptionContainer += std::current_exception();
+					write_request->PostEnd();
+					delete write_request;
+				}
+			}
+			break;
+			default:
+				ENGINE_LOG(Error, "Unrecognised key in IoCompletionPort");
 		}
 		return true;
 	}
@@ -101,7 +133,18 @@ namespace Eng
 			sprintf_s(buffer, "TaskGraph%02d", index);
 			Engine::SetThreadName(buffer, EThreadType::TaskGraphThread);
 		}
-		while (DoWork());
+		bool should_continue = true;
+		while(should_continue)
+		{
+			try
+			{
+				should_continue = DoWork();
+			}
+			catch (...)
+			{
+				Engine::_ExceptionContainer += std::current_exception();
+			}
+		}
 	}
 
 	void TaskGraph::Initialize()
@@ -133,7 +176,17 @@ namespace Eng
 
 	void TaskGraph::AssociateWithRead(void* file_handle)
 	{
+		// result is either NULL or the _IoCompletionPort we passed in.
 		HANDLE result = CreateIoCompletionPort(file_handle, _IoCompletionPort, static_cast<ULONG_PTR>(Key::EndRead), 0);
+		if (result == NULL)
+		{
+			ENGINE_LOG(Error, "Unable to associate file handle with IoCompletionPort");
+		}
+	}
+	void TaskGraph::AssociateWithWrite(void* file_handle)
+	{
+		// result is either NULL or the _IoCompletionPort we passed in.
+		HANDLE result = CreateIoCompletionPort(file_handle, _IoCompletionPort, static_cast<ULONG_PTR>(Key::EndWrite), 0);
 		if (result == NULL)
 		{
 			ENGINE_LOG(Error, "Unable to associate file handle with IoCompletionPort");
@@ -194,6 +247,14 @@ namespace Eng
 		if( FALSE == PostQueuedCompletionStatus(_IoCompletionPort, 0, static_cast<ULONG_PTR>(Key::BeginRead), reinterpret_cast<LPOVERLAPPED>(read_request)))
 		{
 			ENGINE_LOG(Error, "Unable to BeginRead");
+		}
+	}
+	
+	void TaskGraph::BeginWrite(IoWriteRequest* write_request)
+	{
+		if (FALSE == PostQueuedCompletionStatus(_IoCompletionPort, 0, static_cast<ULONG_PTR>(Key::BeginWrite), reinterpret_cast<LPOVERLAPPED>(write_request)))
+		{
+			ENGINE_LOG(Error, "Unable to BeginWrite");
 		}
 	}
 }

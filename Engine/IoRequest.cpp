@@ -7,6 +7,7 @@ namespace Eng
 	IoRequest IoRequest::_InProgressEnd(&_InProgressStart, nullptr);
 	std::atomic<int> IoRequest::_OutstandingIoRequests = 0;
 	HANDLE IoRequest::_CompleteEvent = INVALID_HANDLE_VALUE;
+	SpinLock IoRequest::_Mutex;
 
 	IoRequest::IoRequest()
 		: OVERLAPPED{ 0 }
@@ -39,6 +40,7 @@ namespace Eng
 
 	void IoRequest::PreBegin()
 	{
+		std::unique_lock<SpinLock> lock(_Mutex);
 		_Prev = _InProgressEnd._Prev;
 		_Next = &_InProgressEnd;
 		_Prev->_Next = this;
@@ -46,6 +48,7 @@ namespace Eng
 	}
 	void IoRequest::PreEnd()
 	{
+		std::unique_lock<SpinLock> lock(_Mutex);
 		_Prev->_Next = _Next;
 		_Next->_Prev = _Prev;
 		_Next = nullptr;

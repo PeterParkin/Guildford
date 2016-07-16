@@ -17,8 +17,8 @@ namespace Eng
 	{
 		if (node)
 		{
-			Execute(node->Next);
-			node->Data();
+			Execute(node->_Next);
+			node->_Data();
 			delete node;
 		}
 	}
@@ -30,7 +30,7 @@ namespace Eng
 	{
 		if (node)
 		{
-			Delete(node->Next);
+			Delete(node->_Next);
 			delete node;
 		}
 	}

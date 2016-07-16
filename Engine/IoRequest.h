@@ -30,9 +30,9 @@ namespace Eng
 	private:
 		IoRequest* _Prev;
 		IoRequest* _Next;
+		static SpinLock _Mutex; // For accessing _InProgressStart & _InProgressEnd
 		static IoRequest _InProgressStart, _InProgressEnd;
 		static HANDLE _CompleteEvent;
-		alignas(_CacheLineSize) static std::atomic<int> _OutstandingIoRequests;
-		static uint8_t _CachePad[_CacheLineSize - sizeof(std::atomic<int>)];
+		static std::atomic<int> _OutstandingIoRequests;
 	};
 }

@@ -15,7 +15,8 @@ namespace Eng
 			, _CreateGameInstance(nullptr)
 			, _DestroyGameInstance(nullptr)
 		{
-			_Module = LoadLibrary(dll_name);
+//			_Module = LoadLibrary(dll_name);
+			_Module = LoadLibrary("GameSpinningCube.dll");
 			if (_Module == nullptr)
 			{
 				ENGINE_LOG(Error, "Unable to load %s", dll_name);
@@ -47,6 +48,10 @@ namespace Eng
 			_Module = nullptr;
 		}
 		IGameInstance* CreateGameInstance() { return _CreateGameInstance(); }
+		void DestroyGameInstance(IGameInstance* game_instance)
+		{
+			_DestroyGameInstance(game_instance);
+		}
 	private:
 		HMODULE _Module;
 		CreateGameInstanceType _CreateGameInstance;

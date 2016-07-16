@@ -10,19 +10,27 @@ namespace Eng
 	public:
 		struct Node
 		{
-			T Data;
-			Node* Next;
+			T _Data;
+			Node* _Next;
 			template<typename ...Args>
-			Node(Node* next, Args... args) : Data(args...), Next(next) {}
+			Node(Node* next, Args... args) : _Data(args...), _Next(next) {}
 		};
 
-		AtomicStack() : Head(nullptr)
+		AtomicStack() : _Head(nullptr)
 		{
 		}
 		
 		~AtomicStack()
 		{
-			// TODO: Destruction.
+			for (Node* head = PopAll(); head != nullptr; head = PopAll())
+			{
+				while (head != nullptr)
+				{
+					Node* next = head->_Next;
+					delete head;
+					head = next;
+				}
+			}
 		}
 		// Returns true if it's the first.
 		template<typename ...Args>
@@ -33,30 +41,30 @@ namespace Eng
 				, __FILE__, __LINE__
 #endif
 			);
-			Node* node = pnew<Node>(address, Head.load(std::memory_order_relaxed), args...);
-			while (!Head.compare_exchange_weak(node->Next, node, std::memory_order_release, std::memory_order_relaxed));
-			return node->Next == nullptr;
+			Node* node = pnew<Node>(address, _Head.load(std::memory_order_relaxed), args...);
+			while (!_Head.compare_exchange_weak(node->_Next, node, std::memory_order_release, std::memory_order_relaxed));
+			return node->_Next == nullptr;
 		}
 		bool Pop(T& out)
 		{
-			Node* popped_node = Head.load(std::memory_order_relaxed);
+			Node* popped_node = _Head.load(std::memory_order_relaxed);
 			do
 			{
 				if (popped_node == nullptr)
 				{
 					return false;
 				}
-			} while (!Head.compare_exchange_weak(popped_node, popped_node->Next, std::memory_order_release, std::memory_order_relaxed));
-			out = popped_node->Data;
+			} while (!_Head.compare_exchange_weak(popped_node, popped_node->_Next, std::memory_order_release, std::memory_order_relaxed));
+			out = popped_node->_Data;
 			popped_node->~Node();
 			Free(popped_node);
 			return true;
 		}
 		Node* PopAll()
 		{
-			return Head.exchange(nullptr, std::memory_order_relaxed);
+			return _Head.exchange(nullptr, std::memory_order_relaxed);
 		}
 	private:
-		std::atomic<Node*> Head;
+		std::atomic<Node*> _Head;
 	};
 }

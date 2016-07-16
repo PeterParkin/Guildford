@@ -227,6 +227,8 @@
   <ItemGroup>
     <ClInclude Include="GameSpinningCube.h" />
     <ClInclude Include="GameSpinningCubePCH.h" />
+    <ClInclude Include="PixelShader.h" />
+    <ClInclude Include="VertexShader.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\Engine.vcxproj">
